@@ -1,27 +1,15 @@
 import requests
 from bs4 import BeautifulSoup
 
-def buscar_en_coto(ean):
-    url = f"https://www.cotodigital.com.ar/sitios/cdigi/browse?q={ean}"
-    r = requests.get(url, timeout=10)
-    if r.status_code != 200:
+def precio_coto(ean):
+    try:
+        url = f"https://www.cotodigital.com.ar/sitios/cdigi/browse?q={ean}"
+        r = requests.get(url, timeout=10)
+        soup = BeautifulSoup(r.text, "html.parser")
+
+        price_tag = soup.select_one(".atg_store_newPrice")
+        if price_tag:
+            return float(price_tag.text.replace("$", "").replace(",", ".").strip())
         return None
-
-    soup = BeautifulSoup(r.text, "lxml")
-
-    # precio
-    precio_tag = soup.select_one(".atg_store_newPrice")
-    if not precio_tag:
+    except:
         return None
-
-    precio = precio_tag.get_text(strip=True).replace("$", "").replace(",", ".")
-
-    # nombre
-    nombre_tag = soup.select_one(".atg_store_productListingName a")
-    nombre = nombre_tag.get_text(strip=True) if nombre_tag else "Producto"
-
-    return {
-        "super": "Coto",
-        "producto": nombre,
-        "precio": float(precio)
-    }
