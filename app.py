@@ -1,8 +1,10 @@
 from flask import Flask, jsonify, request
-from scrapers.coto import precio_coto
+#from scrapers.coto import precio_coto
 from scrapers.carrefour import precio_carrefour
 from scrapers.dia import precio_dia
 from scrapers.jumbo import precio_jumbo
+from scrapers.coto import buscar_en_coto
+
 
 app = Flask(__name__)
 
