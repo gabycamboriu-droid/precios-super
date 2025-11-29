@@ -4,35 +4,68 @@ from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# ---------------------------------------------------------
-# Función genérica: intenta extraer precio, devuelve None si falla
-# ---------------------------------------------------------
+# --------------------------
+# Scraper Coto (no funciona bien con requests)
+# --------------------------
 def buscar_en_coto(ean):
+    # Por ahora no podemos obtener precio con requests
+    return None
+
+# --------------------------
+# Scraper Carrefour
+# --------------------------
+def buscar_en_carrefour(ean):
     try:
-        # Scraper simple, puede devolver None si la web no permite extraer
-        search_url = f"https://www.cotodigital.com.ar/sitios/cdigi/browse?q={ean}"
+        search_url = f"https://www.carrefour.com.ar/supermercado/buscar?q={ean}"
         headers = {"User-Agent": "Mozilla/5.0"}
         r = requests.get(search_url, headers=headers, timeout=10)
         r.raise_for_status()
         soup = BeautifulSoup(r.text, "html.parser")
-        # Intento simple: primer producto
-        link = soup.find("a", class_="product-link")
-        if not link:
+        
+        # Buscamos primer producto
+        product = soup.find("div", class_="product-item") or soup.find("div", class_="product")
+        if not product:
             return None
-        return None  # No podemos extraer el precio fácilmente con requests + BS
+
+        # Intentamos encontrar el precio
+        price_tag = product.find("span", class_="product-price") or product.find("span", class_="price")
+        if price_tag:
+            precio_texto = price_tag.get_text().strip()
+            precio_num = int("".join(filter(str.isdigit, precio_texto)))
+            return precio_num
+        return None
     except:
         return None
 
-def buscar_en_carrefour(ean):
-    # Ejemplo de scraper que sí funciona con HTML visible
-    return 890  # precio simulado para test
-
+# --------------------------
+# Scraper Día
+# --------------------------
 def buscar_en_dia(ean):
-    return 780  # precio simulado
+    try:
+        search_url = f"https://www.diaonline.com.ar/buscar?q={ean}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        r = requests.get(search_url, headers=headers, timeout=10)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "html.parser")
+        
+        # Primer producto
+        product = soup.find("div", class_="product-item") or soup.find("div", class_="product")
+        if not product:
+            return None
 
-# ---------------------------------------------------------
+        # Precio
+        price_tag = product.find("span", class_="price") or product.find("span", class_="product-price")
+        if price_tag:
+            precio_texto = price_tag.get_text().strip()
+            precio_num = int("".join(filter(str.isdigit, precio_texto)))
+            return precio_num
+        return None
+    except:
+        return None
+
+# --------------------------
 # Ruta principal de consulta
-# ---------------------------------------------------------
+# --------------------------
 @app.route("/precio/<ean>")
 def obtener_precio(ean):
     precios = {
@@ -42,9 +75,9 @@ def obtener_precio(ean):
     }
     return jsonify({"ean": ean, "supermercados": precios})
 
-# ---------------------------------------------------------
+# --------------------------
 # Ruta de prueba
-# ---------------------------------------------------------
+# --------------------------
 @app.route("/")
 def index():
     return jsonify({"status": "API funcionando"})
