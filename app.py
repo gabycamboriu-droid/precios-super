@@ -1,77 +1,57 @@
+# app.py
 from flask import Flask, jsonify
 import requests
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-# ----------------------------------------------------
-# SCRAPER DE COTO
-# ----------------------------------------------------
+# ---------------------------------------------------------
+# Función para buscar el precio en Coto
+# ---------------------------------------------------------
 def buscar_en_coto(ean):
-    """
-    Busca un producto por código de barras en Coto Digital.
-    Devuelve:
-      - None si no lo encuentra
-      - Diccionario con nombre y precio si lo encuentra
-    """
-    url = f"https://www.cotodigital3.com.ar/sitios/cdigi/browse?q={ean}"
-
     try:
-        r = requests.get(url, timeout=10)
-        if r.status_code != 200:
-            return None
-
-        soup = BeautifulSoup(r.text, "lxml")
-
-        # Coto muestra cada producto en cards
-        card = soup.find("div", class_="product-grid-item")
-        if not card:
-            return None
-
-        nombre = card.find("span", class_="detail__description")
-        precio = card.find("span", class_="atg_store_newPrice")
-
-        nombre = nombre.text.strip() if nombre else "Producto encontrado"
-        precio = precio.text.strip().replace("$", "") if precio else "Sin precio"
-
-        return {
-            "nombre": nombre,
-            "precio": precio
+        url = f"https://www.cotodigital.com.ar/sitios/cdigi/browse?q={ean}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
         }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
 
+        soup = BeautifulSoup(response.text, "html.parser")
+        # Buscamos el precio: en Coto está dentro de <span class="price">
+        price_tag = soup.find("span", class_="price")
+        if price_tag:
+            precio_texto = price_tag.get_text().strip()
+            # Convertimos a número quitando $ y puntos
+            precio_num = int("".join(filter(str.isdigit, precio_texto)))
+            return precio_num
+        else:
+            return None
     except Exception as e:
-        print("ERROR EN COTO:", e)
+        print("Error buscando en Coto:", e)
         return None
 
-
-# ----------------------------------------------------
-# RUTA DE PRUEBA
-# ----------------------------------------------------
-@app.route("/")
-def home():
-    return jsonify({"status": "API funcionando"})
-
-
-# ----------------------------------------------------
-# RUTA PRINCIPAL: /precio/<ean>
-# ----------------------------------------------------
-@app.route("/precio/<ean>")
-def obtener_precios(ean):
-
+# ---------------------------------------------------------
+# Ruta para consultar precios por código de barras
+# ---------------------------------------------------------
+@app.route("/precio/<ean>", methods=["GET"])
+def obtener_precio(ean):
     coto = buscar_en_coto(ean)
 
-    resultado = {
+    respuesta = {
         "ean": ean,
         "supermercados": {
             "Coto": coto
         }
     }
+    return jsonify(respuesta)
 
-    return jsonify(resultado)
+# ---------------------------------------------------------
+# Ruta de prueba
+# ---------------------------------------------------------
+@app.route("/")
+def index():
+    return jsonify({"status": "API funcionando"})
 
-
-# ----------------------------------------------------
-# MAIN (para correr localmente)
-# ----------------------------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
