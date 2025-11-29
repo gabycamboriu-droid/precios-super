@@ -2,5 +2,6 @@ services:
   - type: web
     name: precios-super
     env: python
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app"
+    buildCommand: ""
+    startCommand: gunicorn app:app
+    plan: free
